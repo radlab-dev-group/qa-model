@@ -1,8 +1,11 @@
 from pathlib import Path
 from typing import Protocol, runtime_checkable, Optional
 
-from transformers import AutoModelForCausalLM
-from transformers import AutoConfig, AutoTokenizer, BitsAndBytesConfig, AutoModelForQuestionAnswering
+from transformers import (
+    AutoConfig,
+    BitsAndBytesConfig,
+    AutoModelForQuestionAnswering,
+)
 
 
 @runtime_checkable
@@ -111,6 +114,7 @@ class BitsAndBytesStrategy(QuantizationStrategy):
             quantization_config=bnb_cfg,
             device_map="auto",
         )
+
 
 class GPTQStrategy(QuantizationStrategy, CalibrationDatasetMixin):
     """
