@@ -84,12 +84,14 @@ A quick inference example is provided in `qa-model-inference.py`:
 python qa-model-inference.py
 ```
 
-The script loads the model from the Hugging Face Hub (`radlab/polish-roberta-large-v2-qa`) and runs a single QA pair:
+The script loads the model from the Hugging Face Hub 
+[radlab/polish-qa-v2](https://huggingface.co/radlab/polish-qa-v2)
+and runs a single QA pair:
 
 ```python
 from transformers import pipeline
 
-model_path = "radlab/polish-roberta-large-v2-qa"
+model_path = "radlab/polish-qa-v2"
 qa = pipeline("question-answering", model=model_path)
 
 question = "Co będzie w budowanym obiekcie?"
