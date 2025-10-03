@@ -109,7 +109,7 @@ The script `build_all_maps.py` creates JSON maps that translate QA token IDs to 
 model.
 
 ```bash
-python tokenizer/build_all_maps.py
+python qa-utils/build_all_maps_tokenizer.py
 ```
 
 - **Configuration** – edit the `ROBERTA_MODELS` and `GENAI_MODELS` lists inside the script to add or remove models.

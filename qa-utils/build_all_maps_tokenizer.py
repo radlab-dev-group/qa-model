@@ -5,7 +5,7 @@ CLI entry point – delegates the heavy lifting to TokenMapBuilder.
 import click
 from pathlib import Path
 
-from builder.mapping_builder import TokenMapBuilder
+from builder.tokens_mapping_builder import TokenMapBuilder
 
 # ------------------------------------------------------------------
 # Configuration – model paths / identifiers

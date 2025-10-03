@@ -64,7 +64,7 @@ class TokenMapBuilder:
         decides whether a new mapping needs to be generated based on:
         * ``force_rebuild`` flag,
         * absence of an existing map file,
-        * mismatch between stored hashes and current tokenizer hashes.
+        * mismatch between stored hashes and current qa-utils hashes.
 
         New mappings are written to ``self.maps_dir`` and the accompanying
         metadata file is updated accordingly.
@@ -114,10 +114,10 @@ class TokenMapBuilder:
     @staticmethod
     def _hash_tokenizer(tokenizer: AutoTokenizer) -> str:
         """
-        Compute a stable SHA‑256 hash of a tokenizer's vocabulary.
+        Compute a stable SHA‑256 hash of a qa-utils's vocabulary.
 
         The hash is derived from a JSON‑encoded representation of the
-        tokenizer's ``vocab`` dictionary with keys sorted, ensuring that
+        qa-utils's ``vocab`` dictionary with keys sorted, ensuring that
         the same vocabulary always yields the same hash regardless of
         dictionary ordering.  This hash is used to detect when a cached
         token‑mapping table is out‑of‑date.
@@ -125,7 +125,7 @@ class TokenMapBuilder:
         Parameters
         ----------
         tokenizer : AutoTokenizer
-            The tokenizer whose vocabulary should be hashed.
+            The qa-utils whose vocabulary should be hashed.
 
         Returns
         -------
@@ -143,12 +143,12 @@ class TokenMapBuilder:
         RoBERTa tokenization prefixes tokens that begin a new word
         with the special character ``Ġ`` and uses the ``##`` prefix for
         sub‑word continuation.  This helper strips those prefixes so
-        that the resulting word can be encoded by another tokenizer.
+        that the resulting word can be encoded by another qa-utils.
 
         Parameters
         ----------
         token : str
-            The token string produced by a RoBERTa tokenizer.
+            The token string produced by a RoBERTa qa-utils.
 
         Returns
         -------
@@ -169,17 +169,17 @@ class TokenMapBuilder:
         """
         Build a token‑mapping dictionary for a single QA‑generator pair.
 
-        The function iterates over every token ID in the QA tokenizer,
+        The function iterates over every token ID in the QA qa-utils,
         converts the token to its underlying word form (handling RoBERTa
         prefixes such as ``Ġ`` or ``##``), and then attempts to encode that
-        word with the generator tokenizer.
+        word with the generator qa-utils.
 
         Parameters
         ----------
         qa_tokenizer : AutoTokenizer
-            The tokenizer used for the QA (RoBERTa‑style) model.
+            The qa-utils used for the QA (RoBERTa‑style) model.
         gen_tokenizer : AutoTokenizer
-            The tokenizer used for the generative‑AI model.
+            The qa-utils used for the generative‑AI model.
 
         Returns
         -------
