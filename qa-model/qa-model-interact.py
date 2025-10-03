@@ -21,6 +21,8 @@ def main() -> None:
     printed to standard output.
     """
     model_path = "radlab/polish-qa-v2"
+    # model_path = "/mnt/data2/llms/models/radlab-open/qa/best_model"
+    # model_path = "/mnt/data2/llms/models/radlab-open/qa/best_model/quantized/best_model-bitsandbytes"
     question_answerer = pipeline("question-answering", model=model_path)
 
     while True:
