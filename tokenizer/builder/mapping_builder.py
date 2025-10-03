@@ -55,9 +55,6 @@ class TokenMapBuilder:
         self.maps_dir = self.cache_root / "maps"
         self.meta_path = self.cache_root / "meta" / "maps_metadata.json"
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
     def build_all(self, force_rebuild: bool = False) -> None:
         """
         Build or refresh token‑mapping tables for all configured model pairs.
@@ -114,9 +111,6 @@ class TokenMapBuilder:
 
         print("\n✅ All maps are ready!")
 
-    # ------------------------------------------------------------------
-    # Helper methods – unchanged from the original script (only renamed)
-    # ------------------------------------------------------------------
     @staticmethod
     def _hash_tokenizer(tokenizer: AutoTokenizer) -> str:
         """
