@@ -59,7 +59,7 @@ class ModelLoader:
 
     def load(self):
         print("\nLoading models, this may take a while ...")
-        dtype = torch.float16 if self.device.type == "cuda" else torch.float32
+        # dtype = torch.float16 if self.device.type == "cuda" else torch.float32
 
         qa_model = AutoModelForQuestionAnswering.from_pretrained(self.qa_path)
         # qa_model = qa_model.to(self.device)
