@@ -44,7 +44,7 @@ def main(force_rebuild: bool) -> None:
     Run the full mapping build process.
     """
     # Resolve cache root relative to the project root
-    cache_root = Path(__file__).parents[1] / "cache"
+    cache_root = Path(__file__) / "cache"
 
     builder = TokenMapBuilder(
         roberta_models=ROBERTA_MODELS,
