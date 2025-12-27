@@ -15,6 +15,14 @@ from utils.token_map_io import load_map
 from utils.generate import generate_answer_with_static_bias, generate_without_bias
 
 
+PREDEFINED_QUESTION = "Co będzie w budowanym obiekcie?"
+PREDEFINED_CONTEXT = """Pozwolenie na budowę zostało wydane w marcu. Pierwsze prace przygotowawcze
+na terenie przy ul. Wojska Polskiego już się rozpoczęły.
+Działkę ogrodzono, pojawił się również monitoring, a także kontenery
+dla pracowników budowy. Na ten moment nie jest znana lista sklepów,
+które pojawią się w nowym pasażu handlowym."""
+
+
 # ----------------------------------------------------------------------
 # UI layer
 class ConsoleUI:
@@ -25,11 +33,15 @@ class ConsoleUI:
         print("\nModels loaded. Enter 'quit' at any prompt to exit.\n")
 
     @staticmethod
-    def prompt_context() -> str:
+    def prompt_context(first_run: bool = False) -> str:
+        if first_run:
+            return PREDEFINED_CONTEXT
         return input("Context (press Enter for empty): ").strip()
 
     @staticmethod
-    def prompt_question() -> str:
+    def prompt_question(first_run: bool = False) -> str:
+        if first_run:
+            return PREDEFINED_QUESTION
         return input("Question: ").strip()
 
     @staticmethod
@@ -77,7 +89,7 @@ class ModelLoader:
             quantization_config=bnb_config,
             device_map=self.device,
         )
-        gen_model = gen_model.to(self.device)
+        # gen_model = gen_model.to(self.device)
         gen_tokenizer = AutoTokenizer.from_pretrained(self.gen_path)
 
         return qa_model, qa_tokenizer, gen_model, gen_tokenizer, self.device
@@ -116,14 +128,15 @@ class QAInteractiveApp:
         ) = loader.load()
 
     def run(self) -> None:
+        first_run = True
         ConsoleUI.print_header()
         while True:
             print("=" * 60)
-            context = ConsoleUI.prompt_context()
+            context = ConsoleUI.prompt_context(first_run=first_run)
             if context.lower() == "quit":
                 break
 
-            question = ConsoleUI.prompt_question()
+            question = ConsoleUI.prompt_question(first_run=first_run)
             if question.lower() == "quit":
                 break
 
@@ -151,6 +164,8 @@ class QAInteractiveApp:
             )
 
             ConsoleUI.display_answers(answer_with_bias, answer_without_bias)
+
+            first_run = False
 
         print("Goodbye!")
 
