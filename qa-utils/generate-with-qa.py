@@ -89,7 +89,7 @@ class ModelLoader:
             quantization_config=bnb_config,
             device_map=self.device,
         )
-        gen_model = gen_model.to(self.device)
+        # gen_model = gen_model.to(self.device)
         gen_tokenizer = AutoTokenizer.from_pretrained(self.gen_path)
 
         return qa_model, qa_tokenizer, gen_model, gen_tokenizer, self.device

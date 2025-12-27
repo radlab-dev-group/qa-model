@@ -120,8 +120,22 @@ def _build_bias_vector(qa_to_gen_map, gen_tokenizer, device) -> torch.Tensor:
         except Exception:
             continue
         if 0 <= gen_id < vocab_size:
-            bias[gen_id] = float(val)
-        # else: silently skip or log if you have a logger
+            # ---------------------------------------------------------
+            # NOTE: In some contexts `val` may be a list of generator IDs
+            # (e.g., when `qa_to_gen_map` maps QA token IDs to a list of
+            # generator token IDs). Converting a list directly to `float`
+            # raises a TypeError. To make the function robust we handle
+            # both scalar and list values:
+            #   * If `val` is already a numeric scalar, use it directly.
+            #   * If `val` is a list/tuple, use its length as a simple
+            #     numeric bias (it can be replaced with another aggregation
+            #     such as sum, mean, etc., depending on the use‑case).
+            # ---------------------------------------------------------
+            if isinstance(val, (list, tuple)):
+                bias_value = float(len(val))
+            else:
+                bias_value = float(val)
+            bias[gen_id] = bias_value
 
     return bias
 
@@ -138,50 +152,91 @@ def generate_answer_with_static_bias(
     temperature: float = 0.8,
     top_p: float = 0.9,
     device: torch.device = torch.device("cpu"),
+    use_logits_processor: bool = True,
 ) -> str:
-    # ---------- QA forward ----------
-    qa_input = qa_tokenizer(
-        [query + " " + " ".join(passages)],
-        return_tensors="pt",
-        truncation=True,
-        max_length=512,
-    ).to(device)
-    with torch.no_grad():
-        qa_out = qa_model(**qa_input)
-    print("qa_out=", qa_out)
-    # #
-    # # if hasattr(qa_out, "logits"):
-    # #     qa_logits = qa_out.logits.squeeze(0)
-    # # elif hasattr(qa_out, "start_logits"):
-    # #     qa_logits = qa_out.start_logits.squeeze(0)
-    # # else:
-    # #     raise AttributeError(
-    # #         "QA model output lacks 'logits' and 'start_logits' attributes."
-    # #     )
+    # # ---------- QA forward ----------
+    # qa_input = qa_tokenizer(
+    #     [query + " " + " ".join(passages)],
+    #     return_tensors="pt",
+    #     truncation=True,
+    #     max_length=512,
+    # ).to(device)
+    # with torch.no_grad():
+    #     qa_out = qa_model(**qa_input)
+    #
+    # if hasattr(qa_out, "logits"):
+    #     qa_logits = qa_out.logits.squeeze(0)
+    # elif hasattr(qa_out, "start_logits"):
+    #     qa_logits = qa_out.start_logits.squeeze(0)
+    # else:
+    #     raise AttributeError(
+    #         "QA model output lacks 'logits' and 'start_logits' attributes."
+    #     )
     #
     # # ---------- Bias processor ----------
-    # # bias_processor = QAStaticBiasProcessor(
-    # #     qa_logits=qa_logits,
-    # #     qa_to_gen_map=qa_to_gen_map,
-    # #     vocab_gen=gen_tokenizer.vocab_size,
-    # #     agg_fn=torch.mean,
-    # #     scale=0.8,
-    # # )
+    # bias_processor = QAStaticBiasProcessor(
+    #     qa_logits=qa_logits,
+    #     qa_to_gen_map=qa_to_gen_map,
+    #     vocab_gen=gen_tokenizer.vocab_size,
+    #     agg_fn=torch.mean,
+    #     scale=0.8,
+    # )
     # bias_vec = _build_bias_vector(qa_to_gen_map, gen_tokenizer, device)
-    # logits_processor = LogitsProcessorList([StaticBiasProcessor(bias_vec)])
+    #
+    # # Build the logits processor list only when requested
+    # if use_logits_processor:
+    #     logits_processor = LogitsProcessorList(
+    #         [bias_processor, StaticBiasProcessor(bias_vec)]
+    #     )
+    #     print("logits_processor=", logits_processor)
+    # else:
+    #     logits_processor = None
+    #     print("logits_processor disabled")
     #
     # # ---------- Generation ----------
-    # gen_ids = gen_tokenizer.encode(query, return_tensors="pt").to(device)
-    # out_ids = gen_model.generate(
-    #     gen_ids,
-    #     max_length=max_length,
-    #     logits_processor=logits_processor,
-    #     do_sample=True,
-    #     temperature=temperature,
-    #     top_p=top_p,
-    # )
+    # chat_input = {
+    #     "role": "user",
+    #     "content": query,
+    # }
+    #
+    # chat_ids = gen_tokenizer.apply_chat_template(
+    #     [chat_input],
+    #     tokenize=True,
+    #     add_generation_prompt=True,
+    #     return_tensors="pt",
+    # ).to(device)
+    #
+    # generate_kwargs = {
+    #     "input_ids": chat_ids,
+    #     "max_length": max_length,
+    #     "do_sample": True,
+    #     "temperature": temperature,
+    #     "top_p": top_p,
+    # }
+    # if logits_processor is not None:
+    #     generate_kwargs["logits_processor"] = logits_processor
+    #
+    # out_ids = gen_model.generate(**generate_kwargs)
     # return gen_tokenizer.decode(out_ids[0], skip_special_tokens=True)
-    return "===== generate_answer_with_static_bias ====="
+    return "=== generate_answer_with_static_bias ==="
+
+
+class ClampLogitsProcessor(LogitsProcessor):
+    """
+    Clamp logits to a safe range before the softmax.
+    Prevents `inf`/`nan` values that break CUDA sampling.
+    """
+
+    def __init__(self, min_val: float = -1e4, max_val: float = 1e4):
+        self.min_val = min_val
+        self.max_val = max_val
+
+    def __call__(
+        self, input_ids: torch.Tensor, scores: torch.Tensor
+    ) -> torch.Tensor:
+        # Clamp and clean NaNs / infinities
+        scores = scores.clamp(self.min_val, self.max_val)
+        return torch.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
 
 
 def generate_without_bias(
@@ -197,15 +252,43 @@ def generate_without_bias(
     """
     Generate text using the generator model **without** any bias processor.
     """
-    # # Encode the query (the passages are ignored for the plain generator)
-    # input_str = "".join([query + " " + " ".join(passages)])
-    # gen_ids = gen_tokenizer.encode(input_str, return_tensors="pt").to(device)
-    # out_ids = gen_model.generate(
-    #     gen_ids,
-    #     max_length=max_length,
-    #     do_sample=True,
-    #     temperature=temperature,
-    #     top_p=top_p,
+    # ---------- Generation ----------
+    system_prompt = {
+        "role": "system",
+        "content": f"Na podstawie treści dostarczonych przez użytkownika odpowiedz na pytanie: {query}",
+    }
+
+    chat_input = {
+        "role": "user",
+        "content": " ".join(passages),
+    }
+    chat_ids = gen_tokenizer.apply_chat_template(
+        [system_prompt, chat_input],
+        tokenize=True,
+        add_generation_prompt=True,
+        return_tensors="pt",
+        return_dict=True,
+    ).to(device=device)
+
+    print("chat_ids=", chat_ids)
+
+    inputs = {
+        # "max_length": max_length,
+        "max_new_tokens": 1024,
+        "do_sample": True,
+        "temperature": temperature,
+        "top_p": top_p,
+    }
+    input_len = chat_ids["input_ids"].shape[-1]
+
+    # logits_processor = LogitsProcessorList(
+    #     [ClampLogitsProcessor(min_val=-1e4, max_val=1e4)]
     # )
-    # return gen_tokenizer.decode(out_ids[0], skip_special_tokens=True)
-    return "===== generate_without_bias ====="
+    # generate_kwargs["logits_processor"] = logits_processor
+    #
+    with torch.inference_mode():
+        generation = gen_model.generate(**chat_ids,**inputs)
+        generation = generation[0][input_len:]
+        # generation = generation[0]
+    return gen_tokenizer.decode(generation, skip_special_tokens=True)
+    # return generation
